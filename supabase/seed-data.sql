@@ -1,0 +1,24 @@
+-- Script SQL para insertar 20 llamadas de prueba
+-- Ejecuta este script en Supabase SQL Editor
+
+INSERT INTO calls (phone_number, duration_seconds, status, recording_url, transcript, user_id, created_at) VALUES
+  ('+52 55 1234 5678', 171, 'answered', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', 'Hola, buenos días. Estoy interesado en una propiedad que vi en su página web. Quisiera saber más detalles sobre la casa en la colonia Roma. ¿Todavía está disponible?', (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '2 hours'),
+  ('+52 55 9876 5432', 245, 'answered', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', 'Buenas tardes, llamo para agendar una cita para ver unos departamentos. Me interesan unidades de 2 recámaras en la zona de Polanco. ¿Cuándo podrían mostrarme las opciones?', (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '5 hours'),
+  ('+52 81 2345 6789', 0, 'missed', NULL, NULL, (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '1 day'),
+  ('+52 33 4567 8901', 320, 'answered', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', 'Hola, necesito información sobre el proceso de compra de una casa. Soy primer comprador y no sé mucho del tema. ¿Podrían explicarme los pasos?', (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '2 days'),
+  ('+52 664 123 4567', 95, 'answered', NULL, 'Buenos días, tengo una propiedad que quiero vender. Es una casa de 3 pisos en la colonia Condesa. ¿Ofrecen servicios de valuación y venta?', (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '3 days'),
+  ('+52 999 876 5432', 0, 'missed', NULL, NULL, (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '4 days'),
+  ('+52 998 123 4567', 450, 'answered', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3', 'Hola, estoy buscando rentar un departamento cerca del centro. Mi presupuesto es de 15,000 pesos mensuales. ¿Tienen algo disponible?', (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '1 day 3 hours'),
+  ('+52 614 234 5678', 180, 'answered', NULL, 'Buenas tardes, vi un anuncio de una casa en venta. ¿Podrían darme más información sobre la ubicación exacta y las características?', (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '6 hours'),
+  ('+52 222 345 6789', 0, 'missed', NULL, NULL, (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '1 day 8 hours'),
+  ('+52 477 456 7890', 285, 'answered', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', 'Hola, me gustaría saber si ofrecen créditos hipotecarios o si trabajan con algún banco. Estoy interesado en comprar pero necesito financiamiento.', (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '4 hours'),
+  ('+52 867 567 8901', 0, 'missed', NULL, NULL, (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '2 days 5 hours'),
+  ('+52 664 678 9012', 375, 'answered', NULL, 'Buenos días, tengo una pregunta sobre una propiedad que vi. ¿Cuál es el precio exacto y qué incluye? ¿Se puede negociar?', (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '3 hours'),
+  ('+52 998 789 0123', 210, 'answered', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', 'Hola, estoy buscando una casa con jardín. Tengo mascotas y necesito un espacio al aire libre. ¿Tienen opciones disponibles?', (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '5 days'),
+  ('+52 993 890 1234', 0, 'missed', NULL, NULL, (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '6 days'),
+  ('+52 981 901 2345', 540, 'answered', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', 'Buenas tardes, quiero vender mi departamento. ¿Cuánto tiempo tarda el proceso y qué documentos necesito?', (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '1 day 12 hours'),
+  ('+52 55 1234 5678', 156, 'answered', NULL, 'Hola, me interesa invertir en bienes raíces. ¿Ofrecen asesoría para inversionistas o proyectos de renta?', (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '7 hours'),
+  ('+52 81 2345 6789', 0, 'missed', NULL, NULL, (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '3 days 2 hours'),
+  ('+52 33 4567 8901', 420, 'answered', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3', 'Buenos días, vi una propiedad en su sitio web pero no tiene fotos completas. ¿Podrían enviarme más imágenes del interior?', (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '4 days 8 hours'),
+  ('+52 664 123 4567', 195, 'answered', NULL, 'Hola, estoy buscando una casa en una zona segura para mi familia. ¿Qué colonias recomiendan que tengan buena accesibilidad a escuelas?', (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '2 days 15 hours'),
+  ('+52 999 876 5432', 330, 'answered', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', 'Buenas tardes, tengo una emergencia. Necesito rentar algo urgente, máximo en una semana. ¿Tienen disponibilidad inmediata?', (SELECT id FROM auth.users LIMIT 1), NOW() - INTERVAL '6 days 10 hours');
