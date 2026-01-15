@@ -251,17 +251,19 @@ export async function POST(request: NextRequest) {
         // - phone_number: 'Web Call' (las llamadas web no tienen número telefónico)
         // - duration_seconds: 0 (se actualizará cuando termine la llamada)
         // - status: 'answered' (las llamadas web iniciadas se consideran "answered")
-        const { error: dbError } = await supabase
-          .from('calls')
-          .insert({
-            phone_number: 'Web Call', // Las llamadas web no tienen número telefónico
-            duration_seconds: 0, // Se actualizará cuando termine la llamada
-            status: 'answered', // Las llamadas web se consideran "answered" al iniciar
-            recording_url: null, // Se actualizará cuando esté disponible desde Vapi
-            transcript: null, // Se actualizará cuando esté disponible desde Vapi
-            user_id: dbUser.id,
-            created_at: new Date().toISOString(),
-          })
+        const callData = {
+          phone_number: 'Web Call', // Las llamadas web no tienen número telefónico
+          duration_seconds: 0, // Se actualizará cuando termine la llamada
+          status: 'answered' as const, // Las llamadas web se consideran "answered" al iniciar
+          recording_url: null, // Se actualizará cuando esté disponible desde Vapi
+          transcript: null, // Se actualizará cuando esté disponible desde Vapi
+          user_id: dbUser.id,
+          created_at: new Date().toISOString(),
+        }
+        
+        const { error: dbError } = await (supabase
+          .from('calls') as any)
+          .insert(callData)
 
         if (dbError) {
           console.error('Error guardando llamada en DB:', dbError)

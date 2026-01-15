@@ -22,7 +22,7 @@ export const createClient = () => {
             }
           })
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
           cookiesToSet.forEach(({ name, value, options }) => {
             const parts = [`${name}=${encodeURIComponent(value)}`]
             
