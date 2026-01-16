@@ -219,9 +219,11 @@ export default function SettingsPage() {
                   </ul>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="font-medium text-gray-900 mb-1">Cookies</p>
+                  <p className="font-medium text-gray-900 mb-1">Cookies y Datos Técnicos</p>
                   <ul className="text-gray-600 space-y-1 list-disc list-inside">
-                    <li>Solo cookies de autenticación de Supabase (sesión)</li>
+                    <li>Cookies de autenticación de Supabase (sesión)</li>
+                    <li>Dirección IP (registrada en logs del servidor)</li>
+                    <li>Información del navegador (User-Agent)</li>
                     <li>No utilizamos cookies de seguimiento ni marketing</li>
                   </ul>
                 </div>
@@ -234,19 +236,31 @@ export default function SettingsPage() {
                 <AlertCircle className="w-5 h-5 text-gray-600" />
                 <span>Grabaciones y Transcripciones</span>
               </h3>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-900 mb-2">
-                  <strong>¿Grabamos las conversaciones?</strong>
-                </p>
-                <p className="text-sm text-blue-800 mb-3">
-                  Sí, de forma opcional. Las grabaciones y transcripciones se guardan solo si están habilitadas en tu configuración de Vapi. Solo tú puedes acceder a tus grabaciones y transcripciones.
-                </p>
-                <p className="text-sm text-blue-900 mb-2">
-                  <strong>¿Hacemos minería de datos?</strong>
-                </p>
-                <p className="text-sm text-blue-800">
-                  No. No procesamos tus datos para extraer información comercial ni los vendemos a terceros. Los datos se utilizan únicamente para que puedas acceder a tu historial de llamadas.
-                </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                <div>
+                  <p className="text-sm text-blue-900 mb-2">
+                    <strong>¿Grabamos las conversaciones?</strong>
+                  </p>
+                  <p className="text-sm text-blue-800">
+                    Sí. Las conversaciones son grabadas a través de Vapi. Las grabaciones y transcripciones se almacenan de forma segura y solo tú puedes acceder a ellas a través de tu dashboard.
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-blue-900 mb-2">
+                    <strong>¿Recabamos cookies o dirección IP?</strong>
+                  </p>
+                  <p className="text-sm text-blue-800">
+                    Sí. Utilizamos cookies esenciales para autenticación y recabamos direcciones IP automáticamente en los logs del servidor para seguridad y funcionamiento del servicio.
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-blue-900 mb-2">
+                    <strong>¿Hacemos minería de datos?</strong>
+                  </p>
+                  <p className="text-sm text-blue-800">
+                    No. No procesamos tus datos para extraer información comercial ni los vendemos a terceros. Los datos se utilizan únicamente para proporcionar el servicio y que puedas acceder a tu historial de llamadas.
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -261,7 +275,7 @@ export default function SettingsPage() {
                   Para más detalles sobre privacidad, seguridad, y políticas de datos, consulta nuestro documento completo:
                 </p>
                 <a
-                  href="/PRIVACIDAD-SEGURIDAD.md"
+                  href="https://voilavoiceai.com/privacy"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm"

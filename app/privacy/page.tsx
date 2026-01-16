@@ -26,6 +26,14 @@ export default function PrivacyPage() {
                 <ul className="text-sm text-gray-700 space-y-1">
                   <li className="flex items-start space-x-2">
                     <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                    <span>Grabamos conversaciones (audio y transcripciones)</span>
+                  </li>
+                  <li className="flex items-start space-x-2">
+                    <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                    <span>Recabamos cookies esenciales e IP para funcionamiento del servicio</span>
+                  </li>
+                  <li className="flex items-start space-x-2">
+                    <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                     <span>HTTPS/TLS en toda la plataforma</span>
                   </li>
                   <li className="flex items-start space-x-2">
@@ -88,20 +96,22 @@ export default function PrivacyPage() {
                     ¿La plataforma graba las conversaciones?
                   </h3>
                   <p className="text-gray-700 text-sm mb-2">
-                    <strong>Sí, de forma opcional.</strong> Las conversaciones pueden ser grabadas a través de Vapi (nuestro proveedor de servicios de voz) si está habilitado en tu configuración. Solo tú puedes acceder a tus grabaciones.
+                    <strong>Sí.</strong> Las conversaciones son grabadas a través de Vapi (nuestro proveedor de servicios de voz). Las grabaciones se almacenan de forma segura y solo tú puedes acceder a tus grabaciones a través de tu dashboard.
                   </p>
                 </div>
 
                 <div className="border-l-4 border-primary pl-4">
                   <h3 className="font-semibold text-gray-900 mb-2">
-                    ¿Recabamos cookies o dirección IP?
+                    ¿Al entrar a nuestra plataforma o página web recabamos cookies o web beacons, algo relacionado con la dirección IP?
                   </h3>
                   <p className="text-gray-700 text-sm mb-2">
-                    <strong>Cookies:</strong> Solo cookies esenciales de Supabase para autenticación. No utilizamos cookies de seguimiento, marketing, ni web beacons.
+                    <strong>Sí.</strong> Recabamos información técnica necesaria para el funcionamiento de la plataforma:
                   </p>
-                  <p className="text-gray-700 text-sm">
-                    <strong>IP:</strong> No recabamos explícitamente direcciones IP. Pueden aparecer en logs técnicos del servidor según políticas estándar de los proveedores (Vercel/Supabase).
-                  </p>
+                  <ul className="text-gray-700 text-sm space-y-1 ml-4 list-disc">
+                    <li><strong>Cookies:</strong> Utilizamos cookies esenciales de Supabase para autenticación y sesión de usuario. Estas cookies son necesarias para que puedas iniciar sesión y mantener tu sesión activa.</li>
+                    <li><strong>Dirección IP:</strong> Recabamos direcciones IP de forma automática cuando accedes a nuestra plataforma. Las IPs se registran en los logs técnicos del servidor (Vercel/Supabase) para seguridad, prevención de fraudes y análisis técnico del servicio.</li>
+                    <li><strong>Web Beacons:</strong> No utilizamos web beacons de seguimiento o marketing. Solo utilizamos tecnologías estándar de la web necesarias para el funcionamiento del servicio.</li>
+                  </ul>
                 </div>
 
                 <div className="border-l-4 border-primary pl-4">
@@ -115,11 +125,62 @@ export default function PrivacyPage() {
 
                 <div className="border-l-4 border-primary pl-4">
                   <h3 className="font-semibold text-gray-900 mb-2">
-                    ¿Qué datos específicos recabamos?
+                    ¿Qué datos específicos vamos a recabar?
                   </h3>
-                  <div className="text-gray-700 text-sm space-y-2">
-                    <p><strong>Datos de usuario:</strong> Email (para autenticación), password encriptado, User ID.</p>
-                    <p><strong>Datos de llamadas:</strong> Fecha/hora, número o tipo de llamada, duración, estado, URL de grabación (si disponible), transcripción (si disponible).</p>
+                  <div className="text-gray-700 text-sm space-y-3">
+                    <div>
+                      <p className="font-semibold mb-1">Datos de Usuario (Cuenta):</p>
+                      <ul className="ml-4 list-disc space-y-1">
+                        <li>Email (para autenticación y comunicación)</li>
+                        <li>Contraseña encriptada (nunca almacenamos contraseñas en texto plano)</li>
+                        <li>User ID (identificador único de usuario)</li>
+                        <li>Fecha de creación de cuenta</li>
+                        <li>Última fecha de acceso</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-semibold mb-1">Datos de Llamadas:</p>
+                      <ul className="ml-4 list-disc space-y-1">
+                        <li>Fecha y hora de la llamada</li>
+                        <li>Número telefónico o tipo de llamada (Web Call, teléfono, etc.)</li>
+                        <li>Duración de la llamada (en segundos)</li>
+                        <li>Estado de la llamada (contestada, perdida, en curso)</li>
+                        <li>URL de grabación de audio (si está disponible)</li>
+                        <li>Transcripción completa de la conversación (texto)</li>
+                        <li>Metadatos de la llamada (agente utilizado, configuración)</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-semibold mb-1">Datos Técnicos y de Conexión:</p>
+                      <ul className="ml-4 list-disc space-y-1">
+                        <li>Dirección IP del dispositivo</li>
+                        <li>Información del navegador (User-Agent)</li>
+                        <li>Cookies de sesión y autenticación</li>
+                        <li>Logs de acceso y actividad en la plataforma</li>
+                        <li>Información de dispositivo (tipo, sistema operativo) - recopilada automáticamente por el navegador</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-semibold mb-1">Datos de Uso de la Plataforma:</p>
+                      <ul className="ml-4 list-disc space-y-1">
+                        <li>Páginas visitadas dentro del dashboard</li>
+                        <li>Acciones realizadas (inicio de llamadas, configuración, etc.)</li>
+                        <li>Preferencias de usuario (configuración de notificaciones, etc.)</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-semibold mb-1">Datos de Facturación (si aplica):</p>
+                      <ul className="ml-4 list-disc space-y-1">
+                        <li>Datos de la empresa o persona (nombre, razón social)</li>
+                        <li>Dirección fiscal completa</li>
+                        <li>RFC/NIF/CIF o identificación fiscal</li>
+                        <li>Email de facturación</li>
+                        <li>Teléfono de contacto</li>
+                        <li>Plan de suscripción contratado</li>
+                        <li>Historial de pagos y facturas</li>
+                        <li>Nota: Los datos de tarjetas de crédito NO se almacenan en nuestros servidores (se procesan a través de proveedores PCI-DSS compliant)</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
 
@@ -127,9 +188,28 @@ export default function PrivacyPage() {
                   <h3 className="font-semibold text-gray-900 mb-2">
                     ¿Vamos a facturar?
                   </h3>
-                  <p className="text-gray-700 text-sm">
-                    <strong>No está implementado actualmente.</strong> Si se implementa en el futuro, se manejaría a través de proveedores PCI-DSS compliant (como Stripe). No se guardarían datos de tarjetas de crédito en nuestros servidores.
+                  <p className="text-gray-700 text-sm mb-2">
+                    <strong>Sí.</strong> La plataforma incluye un sistema de facturación para los planes de suscripción.
                   </p>
+                  <div className="text-gray-700 text-sm space-y-2">
+                    <p><strong>Datos de facturación que recabamos:</strong></p>
+                    <ul className="ml-4 list-disc space-y-1">
+                      <li>Datos de la empresa o persona (nombre, razón social)</li>
+                      <li>Dirección fiscal completa</li>
+                      <li>RFC/NIF/CIF o identificación fiscal</li>
+                      <li>Email de facturación</li>
+                      <li>Teléfono de contacto</li>
+                      <li>Plan de suscripción contratado</li>
+                      <li>Historial de pagos y facturas</li>
+                    </ul>
+                    <p className="mt-2"><strong>Seguridad de pagos:</strong></p>
+                    <ul className="ml-4 list-disc space-y-1">
+                      <li>Los pagos se procesan a través de proveedores PCI-DSS compliant (como Stripe)</li>
+                      <li>No almacenamos datos de tarjetas de crédito en nuestros servidores</li>
+                      <li>Todos los datos de pago se manejan de forma segura y encriptada</li>
+                      <li>Cumplimos con estándares de seguridad para procesamiento de pagos</li>
+                    </ul>
+                  </div>
                 </div>
 
                 <div className="border-l-4 border-primary pl-4">
@@ -231,15 +311,9 @@ export default function PrivacyPage() {
                 <p className="text-sm text-gray-700 mb-4">
                   Para más detalles técnicos sobre privacidad y seguridad, consulta nuestro documento completo:
                 </p>
-                <a
-                  href="/PRIVACIDAD-SEGURIDAD.md"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-2 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>Ver Política Completa</span>
-                </a>
+                <p className="text-sm text-gray-700">
+                  Este documento contiene toda la información sobre privacidad y seguridad de Voila Voice AI.
+                </p>
               </div>
             </section>
           </div>
