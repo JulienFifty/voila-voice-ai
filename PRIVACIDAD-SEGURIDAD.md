@@ -193,7 +193,7 @@ Para consultas sobre privacidad, eliminación de datos, o acceso a información:
 
 Esta política puede actualizarse para reflejar cambios en la plataforma. Se recomienda revisar periódicamente.
 
-**Última actualización**: Diciembre 2024
+**Última actualización**: Enero 2026
 
 ---
 

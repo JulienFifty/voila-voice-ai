@@ -18,7 +18,7 @@ const industries = [
       'Agenda visitas 24/7',
       'Responde info propiedades',
     ],
-    caseStudy: '+40% visitas agendadas en KW Puebla',
+    caseStudy: '+40% visitas agendadas',
   },
   {
     id: 'clinicas',

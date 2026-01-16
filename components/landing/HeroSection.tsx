@@ -18,11 +18,11 @@ export default function HeroSection() {
             className="text-center lg:text-left"
           >
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight text-gray-900">
-              La plataforma de asistentes de IA receptionist, impulsada por inteligencia artificial
+              Tu negocio nunca vuelve a perder una llamada.
             </h1>
             
             <p className="text-xl md:text-2xl text-gray-600 mb-10 leading-relaxed max-w-2xl mx-auto lg:mx-0">
-              Nunca vuelvas a perder una llamada. Tu asistente IA contesta 24/7, agenda citas y cierra ventas mientras duermes.
+              Agentes de voz con IA que confirman citas, llaman tus leads y atienden clientes 24/7.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 mb-10 justify-center lg:justify-start">
@@ -139,7 +139,6 @@ export default function HeroSection() {
       <div className="mt-20 pt-12 border-t border-gray-200">
         <p className="text-center text-sm text-gray-500 mb-6">Empresas en México ya confían en nosotros</p>
         <div className="flex flex-wrap justify-center items-center gap-8 opacity-60">
-          <div className="text-2xl font-bold text-gray-400">KW Puebla</div>
           <div className="text-2xl font-bold text-gray-400">Clínica Dental</div>
           <div className="text-2xl font-bold text-gray-400">Restaurante</div>
           <div className="text-2xl font-bold text-gray-400">Barbería</div>

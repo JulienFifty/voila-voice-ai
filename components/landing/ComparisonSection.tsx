@@ -12,56 +12,48 @@ const comparisonData = [
     nosotros: '$4,999',
     recepcionista: '$15,000+',
     callCenter: '$10,000+',
-    dejalia: '$2,600',
   },
   {
     feature: 'Horario',
     nosotros: '24/7',
     recepcionista: '8h/día',
     callCenter: '9-18h',
-    dejalia: '24/7',
   },
   {
     feature: 'Acento',
     nosotros: '🇲🇽 Mexicano',
     recepcionista: '🇲🇽 Mexicano',
     callCenter: '❌ Variable',
-    dejalia: '🇪🇸 Español',
   },
   {
     feature: 'Nunca falta',
     nosotros: true,
     recepcionista: false,
     callCenter: false,
-    dejalia: true,
   },
   {
     feature: 'Soporte local',
     nosotros: '✅ Puebla',
     recepcionista: '✅',
     callCenter: '❌',
-    dejalia: '❌ Madrid',
   },
   {
     feature: 'Dashboard analytics',
     nosotros: true,
     recepcionista: false,
     callCenter: '⚠️ Básico',
-    dejalia: true,
   },
   {
     feature: 'WhatsApp integrado',
     nosotros: true,
     recepcionista: false,
     callCenter: false,
-    dejalia: true,
   },
   {
     feature: 'Setup',
     nosotros: '24h',
     recepcionista: '2-4 semanas',
     callCenter: '1-2 meses',
-    dejalia: '48h',
   },
 ]
 
@@ -90,7 +82,6 @@ export default function ComparisonSection() {
                   <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 bg-blue-50">NOSOTROS</th>
                   <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Recepcionista</th>
                   <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Call Center</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">Dejalia (España)</th>
                 </tr>
               </thead>
               <tbody>
@@ -121,13 +112,6 @@ export default function ComparisonSection() {
                         <AlertCircle className="h-5 w-5 text-yellow-600 mx-auto" />
                       ) : (
                         row.callCenter
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center text-gray-700">
-                      {typeof row.dejalia === 'boolean' ? (
-                        row.dejalia ? <Check className="h-5 w-5 text-green-600 mx-auto" /> : <X className="h-5 w-5 text-red-600 mx-auto" />
-                      ) : (
-                        row.dejalia
                       )}
                     </td>
                   </tr>

@@ -11,7 +11,7 @@ export default function PrivacyPage() {
               Política de Privacidad y Seguridad
             </h1>
             <p className="text-gray-600">Voila Voice AI - Plataforma SaaS Profesional</p>
-            <p className="text-sm text-gray-500 mt-2">Última actualización: Diciembre 2024</p>
+            <p className="text-sm text-gray-500 mt-2">Última actualización: Enero 2026</p>
           </div>
 
           {/* Resumen Ejecutivo */}
