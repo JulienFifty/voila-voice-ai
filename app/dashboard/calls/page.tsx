@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { Call } from '@/types/call'
 import { format, formatDistanceToNow } from 'date-fns'
@@ -15,11 +15,7 @@ export default function CallsPage() {
   const [selectedCall, setSelectedCall] = useState<Call | null>(null)
   const supabase = createClient()
 
-  useEffect(() => {
-    loadCalls()
-  }, [])
-
-  const loadCalls = async () => {
+  const loadCalls = useCallback(async () => {
     try {
       // Intentar cargar desde Supabase
       const {
@@ -51,7 +47,11 @@ export default function CallsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    loadCalls()
+  }, [loadCalls])
 
   const loadMockCalls = () => {
     // Datos de prueba para visualizar el dashboard

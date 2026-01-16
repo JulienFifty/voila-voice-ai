@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { Call } from '@/types/call'
 import { format, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
@@ -38,11 +38,7 @@ export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month'>('week')
   const supabase = createClient()
 
-  useEffect(() => {
-    loadCalls()
-  }, [])
-
-  const loadCalls = async () => {
+  const loadCalls = useCallback(async () => {
     try {
       const {
         data: { user },
@@ -70,7 +66,11 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    loadCalls()
+  }, [loadCalls])
 
   const loadMockCalls = () => {
     // Generar datos de prueba para el dashboard

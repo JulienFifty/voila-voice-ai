@@ -63,7 +63,7 @@ export default function TestimonialsSection() {
               </div>
               
               <p className="text-gray-700 mb-6 relative z-10 italic">
-                "{testimonial.quote}"
+                &ldquo;{testimonial.quote}&rdquo;
               </p>
               
               <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
