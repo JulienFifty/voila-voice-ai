@@ -3,6 +3,8 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 
+export const dynamic = 'force-dynamic'
+
 async function ensureAdmin(request: NextRequest) {
   const cookieStore = await cookies()
   const supabase = createServerClient(

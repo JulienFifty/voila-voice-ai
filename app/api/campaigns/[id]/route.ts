@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 import { getAuthenticatedUser } from '@/lib/auth-api'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/campaigns/[id] - Obtener detalle de campaña con llamadas
  */

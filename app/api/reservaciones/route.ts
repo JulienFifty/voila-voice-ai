@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase-server'
 import { getAuthenticatedUser } from '@/lib/auth-api'
 import { ReservacionFormData } from '@/types/restaurant'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/reservaciones - Listar reservaciones del usuario (query: estado, from, to)
  */

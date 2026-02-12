@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase-server'
 import { getAuthenticatedUser } from '@/lib/auth-api'
 import { listVapiPhoneNumbers } from '@/lib/vapi'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/vapi/phone-numbers - Listar números disponibles para outbound
  * Combina números de phone_numbers (con vapi_phone_number_id) y números de la API VAPI

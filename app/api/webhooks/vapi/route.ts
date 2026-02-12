@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Webhook para eventos de VAPI (end-of-call-report, status-update)
  * Configura en VAPI Dashboard: Server URL = https://tu-dominio.com/api/webhooks/vapi
@@ -48,7 +50,10 @@ export async function POST(request: NextRequest) {
       const durationSeconds =
         callObj.duration ?? callObj.durationSeconds ?? message.duration ?? null
       
-      const phoneNumber = call.customer?.number || null
+      const phoneNumber =
+        call.customer?.number ??
+        (call as { phoneNumber?: { number?: string } }).phoneNumber?.number ??
+        null
       const startedAt = message.startedAt || null
       const endedAt = message.endedAt || null
 
@@ -183,28 +188,66 @@ export async function POST(request: NextRequest) {
       // CASO B: LLAMADA INBOUND (cliente llama al restaurante)
       else {
         console.log('[Webhook VAPI] Llamada INBOUND detectada:', call.id)
-        
-        // Obtener el assistant_id del call para identificar al usuario
-        const assistantId = call.assistantId || call.assistant_id
-        if (!assistantId) {
-          console.error('[Webhook VAPI] No assistant_id en la llamada')
-          return NextResponse.json({ ok: false, error: 'Missing assistant_id' }, { status: 400 })
+
+        const callObj = typeof call === 'object' ? call : {}
+        const payloadMessage = body.message || body
+
+        // Assistant ID: intentar múltiples rutas (inbound a veces viene en distintos sitios)
+        const assistantId =
+          (callObj as { assistantId?: string }).assistantId ??
+          (callObj as { assistant_id?: string }).assistant_id ??
+          (callObj as { assistant?: { id?: string } }).assistant?.id ??
+          (payloadMessage as { assistant?: { id?: string } }).assistant?.id ??
+          null
+
+        let userId: string | null = null
+
+        if (assistantId) {
+          const { data: userAssistant, error: userError } = await supabase
+            .from('user_assistants')
+            .select('user_id')
+            .eq('vapi_assistant_id', assistantId)
+            .eq('active', true)
+            .single()
+
+          if (!userError && userAssistant) {
+            userId = (userAssistant as { user_id: string }).user_id
+            console.log('[Webhook VAPI] Usuario resuelto por assistant_id:', assistantId)
+          }
         }
-        
-        // Buscar el usuario por su assistant_id
-        const { data: userAssistant, error: userError } = await supabase
-          .from('user_assistants')
-          .select('user_id')
-          .eq('vapi_assistant_id', assistantId)
-          .eq('active', true)
-          .single()
-        
-        if (userError || !userAssistant) {
-          console.error('[Webhook VAPI] Usuario no encontrado para assistant:', assistantId)
-          return NextResponse.json({ ok: false, error: 'User not found' }, { status: 404 })
+
+        // Fallback: si no hay assistantId o no se encontró usuario, buscar por número de teléfono (phone_numbers.numero)
+        if (!userId && phoneNumber) {
+          const normalized = phoneNumber.replace(/\D/g, '')
+          const withPlus = normalized ? `+${normalized}` : ''
+          const candidates = [phoneNumber, normalized, withPlus].filter(Boolean)
+          for (const num of candidates) {
+            const { data: phoneRow } = await (supabase as any)
+              .from('phone_numbers')
+              .select('user_id')
+              .eq('activo', true)
+              .eq('numero', num)
+              .maybeSingle()
+            if (phoneRow?.user_id) {
+              userId = phoneRow.user_id
+              console.log('[Webhook VAPI] Usuario resuelto por número de teléfono:', num)
+              break
+            }
+          }
         }
-        
-        const userId = (userAssistant as { user_id: string }).user_id
+
+        if (!userId) {
+          console.error(
+            '[Webhook VAPI] No se pudo resolver usuario: assistantId=',
+            assistantId ?? 'null',
+            ', phoneNumber=',
+            phoneNumber ?? 'null'
+          )
+          return NextResponse.json(
+            { ok: false, error: 'Could not resolve user (missing assistant_id and phone not linked)' },
+            { status: 400 }
+          )
+        }
         
         // 1. Crear registro en tabla 'calls' (inbound)
         const { data: inboundCall, error: insertError } = await (supabase

@@ -3,6 +3,8 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { Database } from '@/types/database'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Route Handler para crear una llamada web
  * 

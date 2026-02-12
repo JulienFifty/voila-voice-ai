@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase-server'
 import { getAuthenticatedUser } from '@/lib/auth-api'
 import { PedidoFormData, PedidoEstado } from '@/types/restaurant'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/pedidos/[id] - Obtener un pedido
  */

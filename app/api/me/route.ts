@@ -3,6 +3,8 @@ import { createClient as createSupabaseJsClient } from '@supabase/supabase-js'
 import { getAuthenticatedUser } from '@/lib/auth-api'
 import { createClient } from '@/lib/supabase-server'
 
+export const dynamic = 'force-dynamic'
+
 export type Industry = 'inmobiliario' | 'restaurante' | 'clinica'
 
 export interface MeProfile {

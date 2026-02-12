@@ -5,6 +5,8 @@ import { placeOutboundCalls, normalizeToE164 } from '@/lib/vapi'
 import { CreateCampaignRequest } from '@/types/campaign'
 import { getUserAssistantId } from '@/lib/userAssistant'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/campaigns - Listar campañas del usuario
  */
