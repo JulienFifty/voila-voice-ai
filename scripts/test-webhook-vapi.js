@@ -14,16 +14,10 @@ const https = require('https')
 const baseUrl = process.argv[2] || 'http://localhost:3000'
 const webhookUrl = `${baseUrl.replace(/\/$/, '')}/api/webhooks/vapi`
 
-// Cargar .env.local para assistant ID
-let assistantId = '4f4dc8fc-4950-42e4-b9d5-080885825348'
-try {
-  const envPath = path.join(__dirname, '..', '.env.local')
-  if (fs.existsSync(envPath)) {
-    const env = fs.readFileSync(envPath, 'utf8')
-    const m = env.match(/NEXT_PUBLIC_VAPI_ASSISTANT_ID=(.+)/)
-    if (m && m[1]) assistantId = m[1].trim()
-  }
-} catch (_) {}
+// Assistant ID para el test. Debe coincidir con user_assistants.vapi_assistant_id (no confundir con Voice ID).
+// Prioridad: VAPI_TEST_ASSISTANT_ID (env) → este default (Sofia - Alitas vinculado en Supabase)
+const DEFAULT_TEST_ASSISTANT_ID = '2a7481eb-0b26-49c8-b6ba-51dbde22a692'
+const assistantId = (process.env.VAPI_TEST_ASSISTANT_ID || DEFAULT_TEST_ASSISTANT_ID).trim()
 
 // Número de la línea del restaurante (al que llaman) → se busca en phone_numbers para resolver user
 const lineNumber = '+522229126551' // +52 (222) 912 6551
