@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { createClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase-server'
 import { getAuthenticatedUser } from '@/lib/auth-api'
 import { PedidoFormData, PedidoEstado } from '@/types/restaurant'
+import { Database } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (url && key) return createClient<Database>(url, key)
+  return null
+}
+
 /**
  * GET /api/pedidos/[id] - Obtener un pedido
+ * Usa service role para no depender de cookies (RLS).
  */
 export async function GET(
   request: NextRequest,
@@ -19,7 +29,7 @@ export async function GET(
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    const supabase = getSupabase() ?? (await createServerClient())
 
     const { data: pedido, error } = await supabase
       .from('pedidos')
@@ -53,7 +63,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    const supabase = getSupabase() ?? (await createServerClient())
 
     const existing = await supabase
       .from('pedidos')
@@ -116,7 +126,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    const supabase = getSupabase() ?? (await createServerClient())
 
     const { error } = await supabase
       .from('pedidos')
