@@ -1,13 +1,31 @@
--- Crear tabla de llamadas (si no existe)
+-- ============================================
+-- TABLA CALLS: Llamadas ENTRANTES (inbound)
+-- ============================================
+-- Esta tabla es para cuando el CLIENTE llama al restaurante
+-- Diferente de campaign_calls que es para llamadas SALIENTES (outbound)
+
 CREATE TABLE IF NOT EXISTS calls (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
-  phone_number TEXT NOT NULL,
-  duration_seconds INTEGER NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('answered', 'missed')),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
+  
+  -- Usuario dueño del negocio
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  
+  -- Info de la llamada VAPI
+  vapi_call_id TEXT UNIQUE,
+  phone_number TEXT,
+  duration_seconds INTEGER,
+  status TEXT NOT NULL DEFAULT 'answered' CHECK (status IN ('answered', 'missed', 'failed')),
+  
+  -- Contenido
   recording_url TEXT,
   transcript TEXT,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE
+  extracted_data JSONB,
+  
+  -- Timestamps VAPI
+  started_at TIMESTAMP WITH TIME ZONE,
+  ended_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Si la tabla ya existe con columnas antiguas, actualizarlas
@@ -74,6 +92,12 @@ CREATE POLICY "Users can delete their own calls"
 CREATE INDEX IF NOT EXISTS calls_user_id_idx ON calls(user_id);
 CREATE INDEX IF NOT EXISTS calls_created_at_idx ON calls(created_at DESC);
 CREATE INDEX IF NOT EXISTS calls_status_idx ON calls(status);
+CREATE INDEX IF NOT EXISTS calls_vapi_call_id_idx ON calls(vapi_call_id);
+
+-- Trigger para updated_at
+DROP TRIGGER IF EXISTS update_calls_updated_at ON calls;
+CREATE TRIGGER update_calls_updated_at BEFORE UPDATE ON calls
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
 -- MÓDULO INMOBILIARIO: Campos adicionales para calls
@@ -816,10 +840,11 @@ CREATE TABLE IF NOT EXISTS pedidos (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  call_id UUID REFERENCES campaign_calls(id) ON DELETE SET NULL,
+  call_id UUID REFERENCES calls(id) ON DELETE SET NULL,
   
   tipo_entrega TEXT NOT NULL DEFAULT 'recoger' CHECK (tipo_entrega IN ('recoger', 'domicilio')),
   direccion_entrega TEXT,
+  hora_recogida TIME,
   
   cliente_nombre TEXT,
   cliente_telefono TEXT,
@@ -837,6 +862,10 @@ CREATE TABLE IF NOT EXISTS pedidos (
 -- Agregar columnas si no existen (para migración)
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS tipo_entrega TEXT DEFAULT 'recoger' CHECK (tipo_entrega IN ('recoger', 'domicilio'));
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS direccion_entrega TEXT;
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS hora_recogida TIME;
+
+-- Agregar columna ocasion_especial a reservaciones
+ALTER TABLE reservaciones ADD COLUMN IF NOT EXISTS ocasion_especial TEXT;
 
 ALTER TABLE pedidos ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can view their own pedidos" ON pedidos;
@@ -862,7 +891,7 @@ CREATE TABLE IF NOT EXISTS reservaciones (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  call_id UUID REFERENCES campaign_calls(id) ON DELETE SET NULL,
+  call_id UUID REFERENCES calls(id) ON DELETE SET NULL,
   
   cliente_nombre TEXT,
   cliente_telefono TEXT,
@@ -871,6 +900,7 @@ CREATE TABLE IF NOT EXISTS reservaciones (
   fecha DATE NOT NULL,
   hora TIME NOT NULL,
   numero_personas INTEGER NOT NULL DEFAULT 2,
+  ocasion_especial TEXT,
   notas TEXT,
   
   estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'confirmada', 'completada', 'no_show', 'cancelada'))

@@ -6,9 +6,13 @@ import { Database } from '@/types/database'
  * Webhook para eventos de VAPI (end-of-call-report, status-update)
  * Configura en VAPI Dashboard: Server URL = https://tu-dominio.com/api/webhooks/vapi
  *
+ * Maneja DOS tipos de llamadas:
+ * - OUTBOUND (campaign_calls): Llamadas que TÚ haces a clientes (campañas)
+ * - INBOUND (calls): Llamadas que el CLIENTE hace al restaurante
+ *
  * Eventos soportados:
- * - end-of-call-report: actualiza campaign_calls con transcript, recording, duration
- * - status-update (ended): actualiza status de campaign_call
+ * - end-of-call-report: guarda transcript, recording, extracted_data
+ * - status-update (ended): actualiza status
  */
 export async function POST(request: NextRequest) {
   try {
@@ -36,13 +40,17 @@ export async function POST(request: NextRequest) {
       const recording = artifact.recording
       const recordingUrl = recording?.url ?? recording?.recordingUrl ?? null
       
-      // NUEVO: Leer datos estructurados extraídos por VAPI
+      // Leer datos estructurados extraídos por VAPI
       const analysis = artifact.analysis || message.analysis || {}
       const structuredData = analysis.structuredData || null
       
       const callObj = typeof call === 'object' ? call : {}
       const durationSeconds =
         callObj.duration ?? callObj.durationSeconds ?? message.duration ?? null
+      
+      const phoneNumber = call.customer?.number || null
+      const startedAt = message.startedAt || null
+      const endedAt = message.endedAt || null
 
       let newStatus: 'answered' | 'missed' | 'failed' = 'answered'
       const endedReason = message.endedReason || ''
@@ -54,6 +62,7 @@ export async function POST(request: NextRequest) {
         newStatus = endedReason.includes('failed') ? 'failed' : 'missed'
       }
 
+      // PASO 1: Determinar si es llamada OUTBOUND (campaña) o INBOUND (cliente)
       const { data: campaignCallData, error: fetchError } = await supabase
         .from('campaign_calls')
         .select('id, campaign_id, user_id')
@@ -61,6 +70,8 @@ export async function POST(request: NextRequest) {
         .single()
 
       const campaignCall = campaignCallData as { id: string; campaign_id: string; user_id: string } | null
+      
+      // CASO A: LLAMADA OUTBOUND (de campaña)
       if (!fetchError && campaignCall) {
         // 1. Actualizar la llamada con transcript, recording y datos extraídos
         await (supabase
@@ -107,6 +118,7 @@ export async function POST(request: NextRequest) {
                   total: total,
                   tipo_entrega: structuredData.tipo_entrega || 'recoger',
                   direccion_entrega: structuredData.direccion_entrega,
+                  hora_recogida: structuredData.hora_recogida,
                   estado: 'recibido',
                   notas: structuredData.notas,
                 })
@@ -166,6 +178,123 @@ export async function POST(request: NextRequest) {
               }),
             })
             .eq('id', campaignCall.campaign_id)
+        }
+      }
+      // CASO B: LLAMADA INBOUND (cliente llama al restaurante)
+      else {
+        console.log('[Webhook VAPI] Llamada INBOUND detectada:', call.id)
+        
+        // Obtener el assistant_id del call para identificar al usuario
+        const assistantId = call.assistantId || call.assistant_id
+        if (!assistantId) {
+          console.error('[Webhook VAPI] No assistant_id en la llamada')
+          return NextResponse.json({ ok: false, error: 'Missing assistant_id' }, { status: 400 })
+        }
+        
+        // Buscar el usuario por su assistant_id
+        const { data: userAssistant, error: userError } = await supabase
+          .from('user_assistants')
+          .select('user_id')
+          .eq('vapi_assistant_id', assistantId)
+          .eq('active', true)
+          .single()
+        
+        if (userError || !userAssistant) {
+          console.error('[Webhook VAPI] Usuario no encontrado para assistant:', assistantId)
+          return NextResponse.json({ ok: false, error: 'User not found' }, { status: 404 })
+        }
+        
+        const userId = (userAssistant as { user_id: string }).user_id
+        
+        // 1. Crear registro en tabla 'calls' (inbound)
+        const { data: inboundCall, error: insertError } = await (supabase
+          .from('calls') as any)
+          .insert({
+            user_id: userId,
+            vapi_call_id: call.id,
+            phone_number: phoneNumber,
+            duration_seconds: durationSeconds,
+            status: newStatus,
+            recording_url: recordingUrl,
+            transcript: transcript,
+            extracted_data: structuredData,
+            started_at: startedAt,
+            ended_at: endedAt,
+          })
+          .select()
+          .single()
+        
+        if (insertError || !inboundCall) {
+          console.error('[Webhook VAPI] Error creando call inbound:', insertError)
+          return NextResponse.json({ ok: false, error: 'Failed to create call' }, { status: 500 })
+        }
+        
+        console.log('[Webhook VAPI] Call inbound creada:', inboundCall.id)
+        
+        // 2. Si hay datos estructurados, obtener industry y procesar
+        if (structuredData) {
+          const { data: profileData } = await supabase
+            .from('user_profiles')
+            .select('industry')
+            .eq('user_id', userId)
+            .single()
+          
+          const userIndustry = profileData?.industry || 'restaurante'
+          
+          // 3. Si es restaurante, auto-crear pedido o reservación
+          if (userIndustry === 'restaurante') {
+            const tipo = structuredData.tipo
+            
+            // Auto-crear PEDIDO
+            if (tipo === 'pedido' && structuredData.items?.length > 0) {
+              const total = structuredData.total || 
+                (structuredData.items || []).reduce((sum: number, item: any) => {
+                  return sum + ((item.precio_unitario || 0) * (item.cantidad || 1))
+                }, 0)
+              
+              try {
+                await (supabase.from('pedidos') as any).insert({
+                  user_id: userId,
+                  call_id: inboundCall.id,
+                  cliente_nombre: structuredData.cliente_nombre || 'Cliente',
+                  cliente_telefono: structuredData.cliente_telefono || phoneNumber || '',
+                  cliente_email: structuredData.cliente_email,
+                  items: structuredData.items,
+                  total: total,
+                  tipo_entrega: structuredData.tipo_entrega || 'recoger',
+                  direccion_entrega: structuredData.direccion_entrega,
+                  hora_recogida: structuredData.hora_recogida,
+                  estado: 'recibido',
+                  notas: structuredData.notas,
+                })
+                console.log('[Webhook VAPI] Pedido INBOUND creado para call:', inboundCall.id)
+              } catch (insertError) {
+                console.error('[Webhook VAPI] Error creando pedido inbound:', insertError)
+              }
+            }
+            
+            // Auto-crear RESERVACIÓN
+            if (tipo === 'reserva' && structuredData.fecha && structuredData.hora) {
+              try {
+                await (supabase.from('reservaciones') as any).insert({
+                  user_id: userId,
+                  call_id: inboundCall.id,
+                  cliente_nombre: structuredData.cliente_nombre || 'Cliente',
+                  cliente_telefono: structuredData.cliente_telefono || phoneNumber || '',
+                  cliente_email: structuredData.cliente_email,
+                  fecha: structuredData.fecha,
+                  hora: structuredData.hora,
+                  numero_personas: structuredData.numero_personas || 2,
+                  ocasion_especial: structuredData.ocasion_especial,
+                  estado: 'pendiente',
+                  notas: structuredData.notas,
+                })
+                console.log('[Webhook VAPI] Reservación INBOUND creada para call:', inboundCall.id)
+              } catch (insertError) {
+                console.error('[Webhook VAPI] Error creando reservación inbound:', insertError)
+              }
+            }
+          }
         }
       }
     } else if (type === 'status-update' && message.status === 'ended') {
