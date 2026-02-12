@@ -3,9 +3,13 @@
 -- Agregar campos hora_recogida y ocasion_especial
 -- ============================================
 
--- 1. Crear tabla 'calls' para llamadas ENTRANTES (inbound)
+-- PASO 1: Eliminar tabla 'calls' antigua si existe (para recrearla con nuevo schema)
+-- Esto es seguro si no tienes datos importantes en la tabla vieja
+DROP TABLE IF EXISTS calls CASCADE;
+
+-- PASO 2: Crear tabla 'calls' para llamadas ENTRANTES (inbound)
 -- Esta tabla es diferente de 'campaign_calls' que es para llamadas SALIENTES (outbound)
-CREATE TABLE IF NOT EXISTS calls (
+CREATE TABLE calls (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
@@ -29,10 +33,10 @@ CREATE TABLE IF NOT EXISTS calls (
   ended_at TIMESTAMP WITH TIME ZONE
 );
 
--- 2. Habilitar RLS para calls
+-- PASO 3: Habilitar RLS para calls
 ALTER TABLE calls ENABLE ROW LEVEL SECURITY;
 
--- 3. Políticas RLS
+-- PASO 4: Políticas RLS
 DROP POLICY IF EXISTS "Users can view their own calls" ON calls;
 DROP POLICY IF EXISTS "Users can insert their own calls" ON calls;
 DROP POLICY IF EXISTS "Users can update their own calls" ON calls;
@@ -54,13 +58,13 @@ CREATE POLICY "Users can delete their own calls"
   ON calls FOR DELETE
   USING (auth.uid() = user_id);
 
--- 4. Crear índices
-CREATE INDEX IF NOT EXISTS calls_user_id_idx ON calls(user_id);
-CREATE INDEX IF NOT EXISTS calls_created_at_idx ON calls(created_at DESC);
-CREATE INDEX IF NOT EXISTS calls_status_idx ON calls(status);
-CREATE INDEX IF NOT EXISTS calls_vapi_call_id_idx ON calls(vapi_call_id);
+-- PASO 5: Crear índices
+CREATE INDEX calls_user_id_idx ON calls(user_id);
+CREATE INDEX calls_created_at_idx ON calls(created_at DESC);
+CREATE INDEX calls_status_idx ON calls(status);
+CREATE INDEX calls_vapi_call_id_idx ON calls(vapi_call_id);
 
--- 5. Trigger para updated_at
+-- PASO 6: Trigger para updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -73,21 +77,30 @@ DROP TRIGGER IF EXISTS update_calls_updated_at ON calls;
 CREATE TRIGGER update_calls_updated_at BEFORE UPDATE ON calls
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- 6. Agregar hora_recogida a pedidos
+-- PASO 7: Agregar hora_recogida a pedidos
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS hora_recogida TIME;
 
--- 7. Agregar ocasion_especial a reservaciones
+-- PASO 8: Agregar ocasion_especial a reservaciones
 ALTER TABLE reservaciones ADD COLUMN IF NOT EXISTS ocasion_especial TEXT;
 
--- 8. Verificar que call_id de pedidos/reservaciones apunte a 'calls' (no 'campaign_calls')
+-- PASO 9: Verificar que call_id de pedidos/reservaciones apunte a 'calls' (no 'campaign_calls')
 -- Nota: Si tienes datos existentes en pedidos/reservaciones que apuntan a campaign_calls,
 -- NO cambies la FK ahora. Mejor crea una columna nueva o maneja ambos casos.
 -- Por simplicidad, asumimos que empiezas desde cero o manejarás esto manualmente.
 
--- Verificar resultados
-SELECT 'Tabla calls creada' as mensaje;
+-- ============================================
+-- VERIFICACIÓN
+-- ============================================
+SELECT 'Tabla calls creada exitosamente' as mensaje
+UNION ALL
 SELECT 'Columnas agregadas a pedidos y reservaciones' as mensaje;
-SELECT column_name, data_type 
+
+-- Mostrar estructura de la tabla calls
+SELECT 
+  column_name, 
+  data_type,
+  is_nullable,
+  column_default
 FROM information_schema.columns 
 WHERE table_name = 'calls' 
 ORDER BY ordinal_position;
