@@ -104,7 +104,7 @@ export async function PATCH(request: NextRequest) {
         )
       : await createClient()
 
-    const { data: existing, error: fetchError } = await supabase
+    const { data: existing, error: fetchError } = await (supabase as any)
       .from('user_profiles')
       .select('id')
       .eq('user_id', user.id)
@@ -117,8 +117,8 @@ export async function PATCH(request: NextRequest) {
 
     let profile: Record<string, unknown>
     if (existing?.id) {
-      const { data, error } = await (supabase
-        .from('user_profiles') as any)
+      const { data, error } = await (supabase as any)
+        .from('user_profiles')
         .update(updates)
         .eq('user_id', user.id)
         .select()
@@ -135,8 +135,8 @@ export async function PATCH(request: NextRequest) {
         active: true,
         ...updates,
       }
-      const { data, error } = await (supabase
-        .from('user_profiles') as any)
+      const { data, error } = await (supabase as any)
+        .from('user_profiles')
         .insert(insertPayload)
         .select()
         .single()

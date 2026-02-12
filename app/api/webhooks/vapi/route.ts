@@ -88,13 +88,13 @@ export async function POST(request: NextRequest) {
 
         // 2. Si hay datos estructurados y el usuario tiene industry, procesar
         if (structuredData && campaignCall.user_id) {
-          const { data: profileData } = await supabase
+          const { data: profileData } = await (supabase as any)
             .from('user_profiles')
             .select('industry')
             .eq('user_id', campaignCall.user_id)
             .single()
           
-          const userIndustry = profileData?.industry || 'inmobiliario'
+          const userIndustry = (profileData as any)?.industry || 'inmobiliario'
           
           // 3. Si es restaurante, auto-crear pedido o reservación
           if (userIndustry === 'restaurante') {
@@ -233,13 +233,13 @@ export async function POST(request: NextRequest) {
         
         // 2. Si hay datos estructurados, obtener industry y procesar
         if (structuredData) {
-          const { data: profileData } = await supabase
+          const { data: profileData } = await (supabase as any)
             .from('user_profiles')
             .select('industry')
             .eq('user_id', userId)
             .single()
           
-          const userIndustry = profileData?.industry || 'restaurante'
+          const userIndustry = (profileData as any)?.industry || 'restaurante'
           
           // 3. Si es restaurante, auto-crear pedido o reservación
           if (userIndustry === 'restaurante') {

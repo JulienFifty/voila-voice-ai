@@ -43,7 +43,7 @@ export default function SettingsPage() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
         
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('user_assistants')
           .select('vapi_assistant_id, vapi_assistant_name')
           .eq('user_id', user.id)
@@ -52,8 +52,8 @@ export default function SettingsPage() {
         
         if (!error && data) {
           setCurrentAssistant(data as { vapi_assistant_id: string; vapi_assistant_name: string })
-          setAssistantId(data.vapi_assistant_id)
-          setAssistantName(data.vapi_assistant_name || '')
+          setAssistantId((data as any).vapi_assistant_id)
+          setAssistantName((data as any).vapi_assistant_name || '')
         }
       } catch (err) {
         console.error('Error cargando asistente:', err)
@@ -114,7 +114,7 @@ export default function SettingsPage() {
       if (!user) throw new Error('Usuario no autenticado')
       
       // Verificar si ya existe
-      const { data: existing } = await supabase
+      const { data: existing } = await (supabase as any)
         .from('user_assistants')
         .select('id')
         .eq('user_id', user.id)
@@ -123,7 +123,8 @@ export default function SettingsPage() {
       
       if (existing) {
         // Actualizar
-        const { error } = await (supabase.from('user_assistants') as any)
+        const { error } = await (supabase as any)
+          .from('user_assistants')
           .update({
             vapi_assistant_id: assistantId.trim(),
             vapi_assistant_name: assistantName.trim() || null,
@@ -134,7 +135,8 @@ export default function SettingsPage() {
         if (error) throw error
       } else {
         // Crear nuevo
-        const { error } = await (supabase.from('user_assistants') as any)
+        const { error } = await (supabase as any)
+          .from('user_assistants')
           .insert({
             user_id: user.id,
             vapi_assistant_id: assistantId.trim(),
