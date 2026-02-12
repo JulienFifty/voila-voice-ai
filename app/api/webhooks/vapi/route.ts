@@ -1,0 +1,195 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { Database } from '@/types/database'
+
+/**
+ * Webhook para eventos de VAPI (end-of-call-report, status-update)
+ * Configura en VAPI Dashboard: Server URL = https://tu-dominio.com/api/webhooks/vapi
+ *
+ * Eventos soportados:
+ * - end-of-call-report: actualiza campaign_calls con transcript, recording, duration
+ * - status-update (ended): actualiza status de campaign_call
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const message = body.message || body
+    const type = message.type
+    const call = message.call || body.call
+
+    if (!call?.id) {
+      return NextResponse.json({ ok: false, error: 'Missing call id' }, { status: 400 })
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[Webhook VAPI] Supabase config missing')
+      return NextResponse.json({ ok: false }, { status: 500 })
+    }
+
+    const supabase = createClient<Database>(supabaseUrl, supabaseServiceKey)
+
+    if (type === 'end-of-call-report') {
+      const artifact = message.artifact || {}
+      const transcript = artifact.transcript || null
+      const recording = artifact.recording
+      const recordingUrl = recording?.url ?? recording?.recordingUrl ?? null
+      
+      // NUEVO: Leer datos estructurados extraídos por VAPI
+      const analysis = artifact.analysis || message.analysis || {}
+      const structuredData = analysis.structuredData || null
+      
+      const callObj = typeof call === 'object' ? call : {}
+      const durationSeconds =
+        callObj.duration ?? callObj.durationSeconds ?? message.duration ?? null
+
+      let newStatus: 'answered' | 'missed' | 'failed' = 'answered'
+      const endedReason = message.endedReason || ''
+      if (
+        endedReason.includes('no-answer') ||
+        endedReason.includes('busy') ||
+        endedReason.includes('failed')
+      ) {
+        newStatus = endedReason.includes('failed') ? 'failed' : 'missed'
+      }
+
+      const { data: campaignCallData, error: fetchError } = await supabase
+        .from('campaign_calls')
+        .select('id, campaign_id, user_id')
+        .eq('vapi_call_id', call.id)
+        .single()
+
+      const campaignCall = campaignCallData as { id: string; campaign_id: string; user_id: string } | null
+      if (!fetchError && campaignCall) {
+        // 1. Actualizar la llamada con transcript, recording y datos extraídos
+        await (supabase
+          .from('campaign_calls') as any)
+          .update({
+            status: newStatus,
+            transcript: transcript,
+            recording_url: recordingUrl,
+            duration_seconds: durationSeconds,
+            extracted_data: structuredData, // Guardar datos extraídos por VAPI
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', campaignCall.id)
+
+        // 2. Si hay datos estructurados y el usuario tiene industry, procesar
+        if (structuredData && campaignCall.user_id) {
+          const { data: profileData } = await supabase
+            .from('user_profiles')
+            .select('industry')
+            .eq('user_id', campaignCall.user_id)
+            .single()
+          
+          const userIndustry = profileData?.industry || 'inmobiliario'
+          
+          // 3. Si es restaurante, auto-crear pedido o reservación
+          if (userIndustry === 'restaurante') {
+            const tipo = structuredData.tipo
+            
+            // Auto-crear PEDIDO si tiene items
+            if (tipo === 'pedido' && structuredData.items?.length > 0) {
+              const total = structuredData.total || 
+                (structuredData.items || []).reduce((sum: number, item: any) => {
+                  return sum + ((item.precio_unitario || 0) * (item.cantidad || 1))
+                }, 0)
+              
+              try {
+                await (supabase.from('pedidos') as any).insert({
+                  user_id: campaignCall.user_id,
+                  call_id: campaignCall.id,
+                  cliente_nombre: structuredData.cliente_nombre || 'Cliente',
+                  cliente_telefono: structuredData.cliente_telefono || '',
+                  cliente_email: structuredData.cliente_email,
+                  items: structuredData.items,
+                  total: total,
+                  tipo_entrega: structuredData.tipo_entrega || 'recoger',
+                  direccion_entrega: structuredData.direccion_entrega,
+                  estado: 'recibido',
+                  notas: structuredData.notas,
+                })
+                console.log('[Webhook VAPI] Pedido creado automáticamente para call:', campaignCall.id)
+              } catch (insertError) {
+                console.error('[Webhook VAPI] Error creando pedido:', insertError)
+              }
+            }
+            
+            // Auto-crear RESERVACIÓN si tiene fecha y hora
+            else if (tipo === 'reserva' && structuredData.fecha && structuredData.hora) {
+              try {
+                await (supabase.from('reservaciones') as any).insert({
+                  user_id: campaignCall.user_id,
+                  call_id: campaignCall.id,
+                  cliente_nombre: structuredData.cliente_nombre || 'Cliente',
+                  cliente_telefono: structuredData.cliente_telefono || '',
+                  cliente_email: structuredData.cliente_email,
+                  fecha: structuredData.fecha,
+                  hora: structuredData.hora,
+                  numero_personas: structuredData.numero_personas || 2,
+                  estado: 'pendiente',
+                  notas: structuredData.notas,
+                })
+                console.log('[Webhook VAPI] Reservación creada automáticamente para call:', campaignCall.id)
+              } catch (insertError) {
+                console.error('[Webhook VAPI] Error creando reservación:', insertError)
+              }
+            }
+          }
+        }
+
+        // 4. Actualizar estadísticas de la campaña
+        const { data: campaignData } = await supabase
+          .from('campaigns')
+          .select('id, total_recipients, completed_calls, failed_calls')
+          .eq('id', campaignCall.campaign_id)
+          .single()
+
+        const campaign = campaignData as { id: string; total_recipients: number; completed_calls: number; failed_calls: number } | null
+        if (campaign) {
+          const prevCompleted = campaign.completed_calls ?? 0
+          const prevFailed = campaign.failed_calls ?? 0
+          const completed = prevCompleted + (newStatus === 'answered' ? 1 : 0)
+          const failed = prevFailed + (newStatus !== 'answered' ? 1 : 0)
+          const totalDone = completed + failed
+          const allDone = totalDone >= (campaign.total_recipients ?? 0)
+
+          await (supabase
+            .from('campaigns') as any)
+            .update({
+              completed_calls: completed,
+              failed_calls: failed,
+              ...(allDone && {
+                status: 'completed',
+                completed_at: new Date().toISOString(),
+              }),
+            })
+            .eq('id', campaignCall.campaign_id)
+        }
+      }
+    } else if (type === 'status-update' && message.status === 'ended') {
+      const { data: endedCampaignCall } = await supabase
+        .from('campaign_calls')
+        .select('id')
+        .eq('vapi_call_id', call.id)
+        .single()
+
+      const endedCall = endedCampaignCall as { id: string } | null
+      if (endedCall) {
+        await (supabase
+          .from('campaign_calls') as any)
+          .update({
+            status: 'missed',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', endedCall.id)
+      }
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('[Webhook VAPI] Error:', err)
+    return NextResponse.json({ ok: false }, { status: 500 })
+  }
+}

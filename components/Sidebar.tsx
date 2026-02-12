@@ -1,26 +1,53 @@
 'use client'
 
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { Phone, BarChart3, Settings, LogOut, Video } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { Phone, BarChart3, Settings, LogOut, Video, Megaphone, UtensilsCrossed, Calendar } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { isAdmin } from '@/lib/admin'
+import { useDashboardIndustryOptional } from '@/contexts/DashboardIndustryContext'
 
-const navigation = [
+const navInmobiliario = [
   { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
   { name: 'Llamadas', href: '/dashboard/calls', icon: Phone },
+  { name: 'Campañas', href: '/dashboard/campaigns', icon: Megaphone },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+  { name: 'Probar Agente', href: '/dashboard/test-agent', icon: Video },
+  { name: 'Configuración', href: '/dashboard/settings', icon: Settings },
+]
+
+const navRestaurante = [
+  { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
+  { name: 'Llamadas', href: '/dashboard/calls', icon: Phone },
+  { name: 'Pedidos', href: '/dashboard/pedidos', icon: UtensilsCrossed },
+  { name: 'Reservaciones', href: '/dashboard/reservaciones', icon: Calendar },
+  { name: 'Promociones', href: '/dashboard/campaigns', icon: Megaphone },
   { name: 'Probar Agente', href: '/dashboard/test-agent', icon: Video },
   { name: 'Configuración', href: '/dashboard/settings', icon: Settings },
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const supabase = createClient()
+  const [userIsAdmin, setUserIsAdmin] = useState(false)
+  const industryContext = useDashboardIndustryOptional()
+  const industry = industryContext?.industry ?? 'restaurante'
+
+  const navigation = useMemo(() => {
+    if (industry === 'restaurante') return navRestaurante
+    return navInmobiliario
+  }, [industry])
+
+  useEffect(() => {
+    async function checkAdmin() {
+      const admin = await isAdmin()
+      setUserIsAdmin(admin)
+    }
+    checkAdmin()
+  }, [])
 
   const handleLogout = async () => {
-    // Por ahora solo redirige, cuando tengas login funcionando descomenta esto:
-    // await supabase.auth.signOut()
     window.location.href = '/login'
   }
 
@@ -50,6 +77,8 @@ export default function Sidebar() {
             </Link>
           )
         })}
+        
+        {/* Nota: Los admins ahora son redirigidos automáticamente a /admin */}
       </nav>
 
       <div className="p-4 border-t border-gray-200">

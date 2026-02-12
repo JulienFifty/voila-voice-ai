@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { Call } from '@/types/call'
 import { format, subDays, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
@@ -15,6 +16,8 @@ import {
   Calendar,
   BarChart3,
   PieChart,
+  UtensilsCrossed,
+  Megaphone,
 } from 'lucide-react'
 import {
   LineChart,
@@ -31,12 +34,17 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
+import { useDashboardIndustryOptional } from '@/contexts/DashboardIndustryContext'
 
 export default function DashboardPage() {
   const [calls, setCalls] = useState<Call[]>([])
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState<'day' | 'week' | 'month'>('week')
+  const [pedidosToday, setPedidosToday] = useState<any[]>([])
+  const [reservacionesToday, setReservacionesToday] = useState<any[]>([])
   const supabase = createClient()
+  const industryContext = useDashboardIndustryOptional()
+  const industry = industryContext?.industry ?? 'restaurante'
 
   const loadCalls = useCallback(async () => {
     try {
@@ -71,6 +79,31 @@ export default function DashboardPage() {
   useEffect(() => {
     loadCalls()
   }, [loadCalls])
+
+  const loadRestaurantData = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const today = format(new Date(), 'yyyy-MM-dd')
+    const { data: pedidos } = await supabase
+      .from('pedidos')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('created_at', `${today}T00:00:00`)
+      .lt('created_at', `${today}T23:59:59.999`)
+      .order('created_at', { ascending: false })
+    setPedidosToday(pedidos || [])
+    const { data: reservaciones } = await supabase
+      .from('reservaciones')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('fecha', today)
+      .order('hora', { ascending: true })
+    setReservacionesToday(reservaciones || [])
+  }, [supabase])
+
+  useEffect(() => {
+    if (industry === 'restaurante') loadRestaurantData()
+  }, [industry, loadRestaurantData])
 
   const loadMockCalls = () => {
     // Generar datos de prueba para el dashboard
@@ -192,6 +225,104 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-gray-600">Cargando dashboard...</div>
+      </div>
+    )
+  }
+
+  if (industry === 'restaurante') {
+    const recentCalls = calls.slice(0, 5)
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard Restaurante</h1>
+          <p className="text-gray-600 mt-1">Resumen del día: pedidos, reservaciones y llamadas</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Link
+            href="/dashboard/pedidos"
+            className="bg-white rounded-lg border border-gray-200 p-6 hover:border-primary hover:shadow-md transition-all"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Pedidos hoy</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{pedidosToday.length}</p>
+              </div>
+              <UtensilsCrossed className="w-10 h-10 text-primary" />
+            </div>
+          </Link>
+          <Link
+            href="/dashboard/reservaciones"
+            className="bg-white rounded-lg border border-gray-200 p-6 hover:border-primary hover:shadow-md transition-all"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Reservaciones hoy</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{reservacionesToday.length}</p>
+              </div>
+              <Calendar className="w-10 h-10 text-primary" />
+            </div>
+          </Link>
+          <Link
+            href="/dashboard/campaigns"
+            className="bg-white rounded-lg border border-gray-200 p-6 hover:border-primary hover:shadow-md transition-all"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Promociones</p>
+                <p className="text-sm text-gray-500 mt-2">Ver campañas activas</p>
+              </div>
+              <Megaphone className="w-10 h-10 text-primary" />
+            </div>
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Llamadas recientes</h2>
+              <Link href="/dashboard/calls" className="text-sm text-primary hover:underline">
+                Ver todas
+              </Link>
+            </div>
+            {recentCalls.length === 0 ? (
+              <p className="text-sm text-gray-500">No hay llamadas recientes</p>
+            ) : (
+              <ul className="space-y-2">
+                {recentCalls.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700 truncate">
+                      {format(new Date(c.created_at), 'HH:mm')} — {c.duration_seconds}s
+                    </span>
+                    <span className={c.status === 'answered' ? 'text-green-600' : 'text-gray-500'}>
+                      {c.status === 'answered' ? 'Contestada' : 'Perdida'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Reservaciones de hoy</h2>
+            {reservacionesToday.length === 0 ? (
+              <p className="text-sm text-gray-500">No hay reservaciones para hoy</p>
+            ) : (
+              <ul className="space-y-2">
+                {reservacionesToday.slice(0, 5).map((r: any) => (
+                  <li key={r.id} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">{r.cliente_nombre} — {r.numero_personas} pers.</span>
+                    <span className="text-gray-500">{r.hora}</span>
+                  </li>
+                ))}
+                {reservacionesToday.length > 5 && (
+                  <li>
+                    <Link href="/dashboard/reservaciones" className="text-sm text-primary hover:underline">
+                      Ver todas ({reservacionesToday.length})
+                    </Link>
+                  </li>
+                )}
+              </ul>
+            )}
+          </div>
+        </div>
       </div>
     )
   }

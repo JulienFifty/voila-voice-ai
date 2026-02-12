@@ -1,18 +1,29 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { Call } from '@/types/call'
+import { CallWithRealtyData } from '@/types/realty'
+import { Database } from '@/types/database'
 import { format, formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale/es'
-import { Eye } from 'lucide-react'
+import { Eye, Search } from 'lucide-react'
 import AudioPlayer from '@/components/AudioPlayer'
 import CallDetailsModal from '@/components/CallDetailsModal'
+import CallFiltersComponent, { CallFilters } from '@/components/llamadas/CallFilters'
+import { WhatsAppButton } from '@/components/shared/WhatsAppButton'
+import { ScoreBadge } from '@/components/shared/ScoreBadge'
+import { UrgencyIndicator } from '@/components/shared/UrgencyIndicator'
+import { TipoInteresBadge } from '@/components/shared/TipoInteresBadge'
+import { FormattedCurrency } from '@/components/shared/FormattedCurrency'
 
 export default function CallsPage() {
-  const [calls, setCalls] = useState<Call[]>([])
+  const [calls, setCalls] = useState<CallWithRealtyData[]>([])
+  const [filteredCalls, setFilteredCalls] = useState<CallWithRealtyData[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCall, setSelectedCall] = useState<Call | null>(null)
+  const [filters, setFilters] = useState<CallFilters>({})
+  const [searchQuery, setSearchQuery] = useState('')
   const supabase = createClient()
 
   const loadCalls = useCallback(async () => {
@@ -35,7 +46,19 @@ export default function CallsPage() {
           // Si hay error, cargar datos de prueba
           loadMockCalls()
         } else {
-          setCalls(data || [])
+          // Transformar datos a CallWithRealtyData
+          const callsWithRealty = (data || []).map((call: any) => ({
+            ...call,
+            extracted_data: call.extracted_data as any,
+            tipo_interes: call.tipo_interes as any,
+            zona_interes: call.zona_interes || null,
+            presupuesto_min: call.presupuesto_min || null,
+            presupuesto_max: call.presupuesto_max || null,
+            urgencia: call.urgencia as any,
+            score: call.score as any,
+            converted_to_lead: call.converted_to_lead || false,
+          }))
+          setCalls(callsWithRealty as CallWithRealtyData[])
         }
       } else {
         // Sin usuario: cargar datos de prueba para visualizar
@@ -120,7 +143,7 @@ export default function CallsPage() {
 
     // Simular carga
     setTimeout(() => {
-      setCalls(mockCalls)
+      setCalls(mockCalls as CallWithRealtyData[])
       setLoading(false)
     }, 500)
   }
@@ -150,6 +173,77 @@ export default function CallsPage() {
     }
   }
 
+  // Extraer nombre del prospecto desde extracted_data o transcripción
+  const getProspectName = (call: CallWithRealtyData): string => {
+    if (call.extracted_data?.nombre) {
+      return call.extracted_data.nombre
+    }
+    // Intentar extraer de transcripción
+    if (call.transcript) {
+      const nameMatch = call.transcript.match(/(?:mi nombre es|me llamo|soy)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)?)/i)
+      if (nameMatch) return nameMatch[1]
+    }
+    return '-'
+  }
+
+  // Filtrar llamadas
+  useEffect(() => {
+    let filtered = [...calls]
+
+    // Filtro por tipo de interés
+    if (filters.tipoInteres) {
+      filtered = filtered.filter((call) => call.tipo_interes === filters.tipoInteres)
+    }
+
+    // Filtro por score
+    if (filters.score) {
+      filtered = filtered.filter((call) => call.score === filters.score)
+    }
+
+    // Filtro por urgencia
+    if (filters.urgencia) {
+      filtered = filtered.filter((call) => call.urgencia === filters.urgencia)
+    }
+
+    // Filtro por zona
+    if (filters.zona) {
+      filtered = filtered.filter(
+        (call) =>
+          call.zona_interes?.some((zona) =>
+            zona.toLowerCase().includes(filters.zona!.toLowerCase())
+          ) || call.transcript?.toLowerCase().includes((filters.zona ?? '').toLowerCase())
+      )
+    }
+
+    // Filtro por fecha desde
+    if (filters.fechaDesde) {
+      filtered = filtered.filter(
+        (call) => new Date(call.created_at) >= new Date(filters.fechaDesde!)
+      )
+    }
+
+    // Filtro por fecha hasta
+    if (filters.fechaHasta) {
+      filtered = filtered.filter(
+        (call) => new Date(call.created_at) <= new Date(filters.fechaHasta!)
+      )
+    }
+
+    // Búsqueda general
+    if (searchQuery || filters.busqueda) {
+      const query = (searchQuery || filters.busqueda || '').toLowerCase()
+      filtered = filtered.filter(
+        (call) =>
+          call.phone_number.toLowerCase().includes(query) ||
+          getProspectName(call).toLowerCase().includes(query) ||
+          call.transcript?.toLowerCase().includes(query) ||
+          call.zona_interes?.some((zona) => zona.toLowerCase().includes(query))
+      )
+    }
+
+    setFilteredCalls(filtered)
+  }, [calls, filters, searchQuery])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -163,62 +257,77 @@ export default function CallsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Llamadas</h1>
-          <p className="text-gray-600 mt-1">Gestiona todas tus llamadas</p>
+          <p className="text-gray-600 mt-1">Gestiona todas tus llamadas inmobiliarias</p>
         </div>
         <div className="text-sm text-gray-500">
-          Total: <span className="font-semibold text-gray-900">{calls.length}</span> llamadas
+          Mostrando: <span className="font-semibold text-gray-900">{filteredCalls.length}</span> de{' '}
+          <span className="font-semibold text-gray-900">{calls.length}</span> llamadas
         </div>
       </div>
+
+      {/* Búsqueda rápida */}
+      <div className="mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type="text"
+            placeholder="Buscar por nombre, teléfono, zona..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <CallFiltersComponent onFilterChange={setFilters} />
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <colgroup>
-              <col className="w-[18%]" />
-              <col className="w-[15%]" />
-              <col className="w-[10%]" />
-              <col className="w-[12%]" />
-              <col className="w-[25%]" />
-              <col className="w-[20%]" />
-            </colgroup>
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Fecha/Hora
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Número
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Prospecto
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Tipo
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Zona / Presupuesto
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Calificación
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Duración
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estado
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Grabación
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acción
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Acciones
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {calls.length === 0 ? (
+              {filteredCalls.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-6 py-8 text-center text-gray-500"
                   >
-                    No hay llamadas registradas
+                    {calls.length === 0
+                      ? 'No hay llamadas registradas'
+                      : 'No se encontraron llamadas con los filtros aplicados'}
                   </td>
                 </tr>
               ) : (
-                calls.map((call) => (
+                filteredCalls.map((call) => (
                   <tr key={call.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-900">
+                    <td className="px-4 py-4 text-sm">
                       <div className="flex flex-col">
-                        <span className="font-medium">
+                        <span className="font-medium text-gray-900">
                           {formatRelativeTime(call.created_at)}
                         </span>
                         <span className="text-xs text-gray-500">
@@ -228,34 +337,75 @@ export default function CallsPage() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {call.phone_number}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDuration(call.duration_seconds)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={getStatusBadge(call.status)}>
-                        {call.status === 'answered' ? 'Contestada' : 'Perdida'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {call.recording_url ? (
-                        <AudioPlayer src={call.recording_url} />
-                      ) : (
-                        <span className="text-sm text-gray-400 italic">
-                          No disponible
+                    <td className="px-4 py-4 text-sm">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium text-gray-900">
+                          {getProspectName(call)}
                         </span>
+                        <span className="text-gray-500 text-xs">
+                          {call.phone_number}
+                        </span>
+                        {call.phone_number && call.status === 'answered' && (
+                          <WhatsAppButton
+                            phoneNumber={call.phone_number}
+                            size="sm"
+                            variant="outline"
+                          />
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col gap-1">
+                        {call.tipo_interes && (
+                          <TipoInteresBadge tipo={call.tipo_interes} showLabel={false} />
+                        )}
+                        {call.urgencia && (
+                          <UrgencyIndicator urgencia={call.urgencia} showLabel={false} />
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-sm">
+                      <div className="flex flex-col gap-1">
+                        {call.zona_interes && call.zona_interes.length > 0 && (
+                          <span className="text-gray-900">
+                            📍 {call.zona_interes.join(', ')}
+                          </span>
+                        )}
+                        {(call.presupuesto_min || call.presupuesto_max) && (
+                          <span className="text-gray-600">
+                            <FormattedCurrency
+                              min={call.presupuesto_min || undefined}
+                              max={call.presupuesto_max || undefined}
+                            />
+                          </span>
+                        )}
+                        {!call.zona_interes?.length &&
+                          !call.presupuesto_min &&
+                          !call.presupuesto_max && (
+                            <span className="text-gray-400 text-xs">-</span>
+                          )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      {call.score ? (
+                        <ScoreBadge score={call.score} showLabel={false} />
+                      ) : (
+                        <span className="text-gray-400 text-xs">Sin calificar</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm font-medium">
-                      <button
-                        onClick={() => setSelectedCall(call)}
-                        className="text-primary hover:text-primary-dark inline-flex items-center space-x-1 transition-colors font-medium"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span>Ver</span>
-                      </button>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatDuration(call.duration_seconds)}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setSelectedCall(call)}
+                          className="text-blue-600 hover:text-blue-800 inline-flex items-center space-x-1 transition-colors font-medium text-sm"
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span>Ver</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -269,6 +419,10 @@ export default function CallsPage() {
         <CallDetailsModal
           call={selectedCall}
           onClose={() => setSelectedCall(null)}
+          onConvertToLead={async (callId) => {
+            // Recargar llamadas después de convertir a lead
+            await loadCalls()
+          }}
         />
       )}
     </div>
