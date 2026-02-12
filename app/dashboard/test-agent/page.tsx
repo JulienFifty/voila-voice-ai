@@ -90,7 +90,7 @@ export default function TestAgentPage() {
                     <p className="font-semibold mb-2">Pasos rápidos:</p>
                     <ol className="list-decimal list-inside space-y-1 ml-2">
                       <li>Ve a <Link href="/dashboard/settings" className="underline hover:text-yellow-900">Configuración</Link></li>
-                      <li>Busca la sección "Asistente de IA"</li>
+                      <li>Busca la sección &quot;Asistente de IA&quot;</li>
                       <li>Ingresa tu ID de asistente VAPI</li>
                       <li>Guarda y regresa aquí para probar</li>
                     </ol>
