@@ -50,9 +50,16 @@ export async function POST(request: NextRequest) {
       const durationSeconds =
         callObj.duration ?? callObj.durationSeconds ?? message.duration ?? null
       
+      // Número del cliente (quien llama) → se guarda en calls.phone_number
       const phoneNumber =
         call.customer?.number ??
+        (call as { from?: { number?: string } }).from?.number ??
+        null
+      // Número de la línea a la que llamaron (nuestro número) → para buscar user en phone_numbers
+      const lineNumber =
         (call as { phoneNumber?: { number?: string } }).phoneNumber?.number ??
+        (call as { to?: { number?: string } }).to?.number ??
+        (message as { to?: string }).to ??
         null
       const startedAt = message.startedAt || null
       const endedAt = message.endedAt || null
@@ -216,11 +223,11 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Fallback: si no hay assistantId o no se encontró usuario, buscar por número de teléfono (phone_numbers.numero)
-        if (!userId && phoneNumber) {
-          const normalized = phoneNumber.replace(/\D/g, '')
+        // Fallback: si no hay assistantId o no se encontró usuario, buscar por número de la línea (a la que llamaron)
+        if (!userId && lineNumber) {
+          const normalized = lineNumber.replace(/\D/g, '')
           const withPlus = normalized ? `+${normalized}` : ''
-          const candidates = [phoneNumber, normalized, withPlus].filter(Boolean)
+          const candidates = [lineNumber, normalized, withPlus].filter(Boolean)
           for (const num of candidates) {
             const { data: phoneRow } = await (supabase as any)
               .from('phone_numbers')
@@ -230,7 +237,7 @@ export async function POST(request: NextRequest) {
               .maybeSingle()
             if (phoneRow?.user_id) {
               userId = phoneRow.user_id
-              console.log('[Webhook VAPI] Usuario resuelto por número de teléfono:', num)
+              console.log('[Webhook VAPI] Usuario resuelto por número de línea:', num)
               break
             }
           }
@@ -240,11 +247,11 @@ export async function POST(request: NextRequest) {
           console.error(
             '[Webhook VAPI] No se pudo resolver usuario: assistantId=',
             assistantId ?? 'null',
-            ', phoneNumber=',
-            phoneNumber ?? 'null'
+            ', lineNumber=',
+            lineNumber ?? 'null'
           )
           return NextResponse.json(
-            { ok: false, error: 'Could not resolve user (missing assistant_id and phone not linked)' },
+            { ok: false, error: 'Could not resolve user (missing assistant_id and line number not linked)' },
             { status: 400 }
           )
         }
