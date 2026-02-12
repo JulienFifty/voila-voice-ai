@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { Database } from '@/types/database'
 
@@ -65,10 +66,15 @@ interface CreateWebCallRequest {
  *   }
  * }
  */
+/**
+ * Las llamadas web se inician en el cliente con el SDK (vapi.start(assistantId) + public key).
+ * No usamos la API REST de VAPI para crearlas (esa API es para outboundPhoneCall/inboundPhoneCall).
+ * Solo generamos un call_id local y devolvemos lo que el cliente necesita para el SDK.
+ */
 async function createWebCall(
   agentId: string,
-  accountId: string,
-  userId: string
+  _accountId: string,
+  _userId: string
 ): Promise<{
   call_id: string
   call_type: 'web_call'
@@ -80,89 +86,25 @@ async function createWebCall(
   metadata: { source: string; agent_name: string }
   call_cost: { total_duration_seconds: number; combined_cost: number }
 }> {
-  const apiKey = process.env.VAPI_API_KEY
-  const apiUrl = process.env.VAPI_API_URL || 'https://api.vapi.ai'
+  const callId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const accessToken = `token_${Date.now()}_${Math.random().toString(36).substr(2, 16)}`
 
-  if (!apiKey) {
-    throw new Error('VAPI_API_KEY no está configurada en las variables de entorno')
-  }
-
-  try {
-    // Llamar a la API de Vapi para crear una llamada web
-    const response = await fetch(`${apiUrl}/call`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        agentId,
-        type: 'webCall', // Tipo de llamada web
-        metadata: {
-          source: 'dashboard_web_call',
-          account_id: accountId,
-          user_id: userId,
-        },
-        dataStorageSetting: 'everything',
-      }),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Error desconocido' }))
-      throw new Error(
-        `Error al crear llamada en Vapi: ${response.status} - ${errorData.message || errorData.error || 'Error desconocido'}`
-      )
-    }
-
-    const callData = await response.json()
-
-    // Mapear la respuesta de Vapi al formato esperado
-    return {
-      call_id: callData.id || callData.callId,
-      call_type: 'web_call',
-      agent_id: agentId,
-      agent_name: callData.agentName || 'Tu agente',
-      call_status: 'registered',
-      data_storage_setting: 'everything',
-      access_token: callData.accessToken || callData.access_token || callData.token,
-      metadata: {
-        source: 'dashboard_web_call',
-        agent_name: callData.agentName || 'Tu agente',
-      },
-      call_cost: {
-        total_duration_seconds: 0,
-        combined_cost: 0,
-      },
-    }
-  } catch (error: any) {
-    // Si falla la API real, loguear el error pero no fallar completamente
-    // (puedes quitar esto en producción si quieres que falle)
-    console.error('Error llamando a la API de Vapi:', error)
-    
-    // Por ahora, retornar un mock para que la UI funcione
-    // TODO: Remover esto cuando la API esté funcionando correctamente
-    console.warn('Usando respuesta mock debido a error en API de Vapi')
-    
-    const callId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    const accessToken = `token_${Date.now()}_${Math.random().toString(36).substr(2, 16)}`
-
-    return {
-      call_id: callId,
-      call_type: 'web_call',
-      agent_id: agentId,
+  return {
+    call_id: callId,
+    call_type: 'web_call',
+    agent_id: agentId,
+    agent_name: 'Tu agente',
+    call_status: 'registered',
+    data_storage_setting: 'everything',
+    access_token: accessToken,
+    metadata: {
+      source: 'dashboard_web_call',
       agent_name: 'Tu agente',
-      call_status: 'registered',
-      data_storage_setting: 'everything',
-      access_token: accessToken,
-      metadata: {
-        source: 'dashboard_web_call',
-        agent_name: 'Tu agente',
-      },
-      call_cost: {
-        total_duration_seconds: 0,
-        combined_cost: 0,
-      },
-    }
+    },
+    call_cost: {
+      total_duration_seconds: 0,
+      combined_cost: 0,
+    },
   }
 }
 
@@ -231,52 +173,27 @@ export async function POST(request: NextRequest) {
     // Guardar registro en la base de datos si tenemos un usuario autenticado
     if (dbUser && userId) {
       try {
-        // Crear cliente de Supabase para guardar en DB
-        const cookieStore = await cookies()
-        const supabase = createServerClient<Database>(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          {
-            cookies: {
-              getAll() {
-                return cookieStore.getAll()
-              },
-              setAll() {
-                // No hacer nada en setAll para inserts
-              },
-            },
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+        if (supabaseUrl && serviceRoleKey) {
+          const supabaseAdmin = createClient<Database>(supabaseUrl, serviceRoleKey)
+          const callData = {
+            phone_number: 'Web Call',
+            duration_seconds: 0,
+            status: 'answered' as const,
+            recording_url: null,
+            transcript: null,
+            user_id: dbUser.id,
           }
-        )
-
-        // Insertar la llamada en la base de datos
-        // Para llamadas web, adaptamos los campos:
-        // - phone_number: 'Web Call' (las llamadas web no tienen número telefónico)
-        // - duration_seconds: 0 (se actualizará cuando termine la llamada)
-        // - status: 'answered' (las llamadas web iniciadas se consideran "answered")
-        const callData = {
-          phone_number: 'Web Call', // Las llamadas web no tienen número telefónico
-          duration_seconds: 0, // Se actualizará cuando termine la llamada
-          status: 'answered' as const, // Las llamadas web se consideran "answered" al iniciar
-          recording_url: null, // Se actualizará cuando esté disponible desde Vapi
-          transcript: null, // Se actualizará cuando esté disponible desde Vapi
-          user_id: dbUser.id,
-          created_at: new Date().toISOString(),
-        }
-        
-        const { error: dbError } = await (supabase
-          .from('calls') as any)
-          .insert(callData)
-
-        if (dbError) {
-          console.error('Error guardando llamada en DB:', dbError)
-          // No fallar la request, solo loguear el error
-        } else {
-          console.log('Llamada guardada exitosamente en la base de datos')
+          const { error: dbError } = await (supabaseAdmin.from('calls') as any).insert(callData)
+          if (dbError) {
+            console.error('Error guardando llamada en DB:', dbError)
+          } else {
+            console.log('Llamada guardada exitosamente en la base de datos')
+          }
         }
       } catch (dbErr) {
-        // Si hay error al guardar en DB, continuar de todas formas
         console.error('Error al intentar guardar en DB:', dbErr)
-        // No fallar la request, solo loguear
       }
     } else {
       console.log('Usuario no autenticado, no se guardará en la base de datos')

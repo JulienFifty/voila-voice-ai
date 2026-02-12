@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { createClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase-server'
 import { getAuthenticatedUser } from '@/lib/auth-api'
 import { PedidoFormData } from '@/types/restaurant'
+import { Database } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/pedidos - Listar pedidos del usuario (query: estado, from, to)
+ * Usa service role para evitar que RLS oculte filas cuando la sesión por cookies no coincide (ej. auth por Bearer).
  */
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +18,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     }
 
-    const supabase = await createClient()
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const supabase = url && key
+      ? createClient<Database>(url, key)
+      : await createServerClient()
+
     const { searchParams } = new URL(request.url)
     const estado = searchParams.get('estado')
     const from = searchParams.get('from')
@@ -76,7 +84,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
+    const supabase = await createServerClient()
 
     const { data: pedido, error } = await (supabase
       .from('pedidos') as any)
